@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chat Assistant - ที่ปรึกษา AI</title>
+  <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .chat-container {
+            width: 90%;
+            max-width: 800px;
+            height: 90vh;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: #f5f5f5;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            text-align: right;
+        }
+
+        .message.bot {
+            text-align: left;
+        }
+
+        .message-bubble {
+            display: inline-block;
+            padding: 12px 18px;
+            border-radius: 18px;
+            max-width: 70%;
+            word-wrap: break-word;
+        }
+
+        .message.user .message-bubble {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .message.bot .message-bubble {
+            background: white;
+            color: #333;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .message-time {
+            display: block;
+            font-size: 11px;
+            margin-top: 5px;
+            opacity: 0.7;
+        }
+
+        .chat-input-container {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 12px 18px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .chat-input:focus {
+            border-color: #667eea;
+        }
+
+        .send-button {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .send-button:hover {
+            transform: scale(1.05);
+        }
+
+        .send-button:active {
+            transform: scale(0.95);
+        }
+
+        .typing-indicator {
+            display: none;
+            padding: 10px;
+            text-align: left;
+        }
+
+        .typing-indicator.show {
+            display: block;
+        }
+
+        .typing-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #999;
+            margin: 0 2px;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% {
+                transform: translateY(0);
+            }
+            30% {
+                transform: translateY(-10px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            💬 Real-Time Chat
+        </div>
+        <div class="chat-messages" id="chatMessages">
+            <div class="message bot">
+                <div class="message-bubble">
+                    สวัสดีครับ! ยินดีต้อนรับสู่ระบบแชทแบบเรียลไทม์ 🎉<br>
+                    พิมพ์ข้อความอะไรก็ได้เพื่อเริ่มสนทนาครับ
+                    <span class="message-time" id="welcomeTime"></span>
+                </div>
+            </div>
+        </div>
+        <div class="typing-indicator" id="typingIndicator">
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+        </div>
+        <div class="chat-input-container">
+            <input 
+                type="text" 
+                class="chat-input" 
+                id="messageInput" 
+                placeholder="พิมพ์ข้อความของคุณที่นี่..."
+                autocomplete="off"
+            >
+            <button class="send-button" id="sendButton">ส่ง</button>
+        </div>
+    </div>
+
+  <script>
+const chatMessages = document.getElementById('chatMessages');
+const messageInput = document.getElementById('messageInput');
+const sendButton = document.getElementById('sendButton');
+const typingIndicator = document.getElementById('typingIndicator');
+
+document.getElementById('welcomeTime').textContent = getCurrentTime();
+
+let conversationHistory = [];
+
+// ===== ส่งข้อความ =====
+sendButton.addEventListener('click', sendMessage);
+
+messageInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        sendMessage();
+    }
+});
+
+function getCurrentTime() {
+    return new Date().toLocaleTimeString('th-TH', {
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+function addMessage(text, sender) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${sender}`;
+
+    const bubbleDiv = document.createElement('div');
+    bubbleDiv.className = 'message-bubble';
+    bubbleDiv.innerHTML =
+        text.replace(/\n/g, '<br>') +
+        `<span class="message-time">${getCurrentTime()}</span>`;
+
+    messageDiv.appendChild(bubbleDiv);
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// ===== เรียก AI จริง =====
+async function getAIResponse(message) {
+    conversationHistory.push({
+        role: "user",
+        content: message
+    });
+
+    const response = await fetch("http://localhost:3000/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            messages: conversationHistory
+        })
+    });
+
+    const data = await response.json();
+
+    conversationHistory.push({
+        role: "assistant",
+        content: data.reply
+    });
+
+    return data.reply;
+}
+
+// ===== ส่งข้อความหลัก =====
+async function sendMessage() {
+    const message = messageInput.value.trim();
+    if (!message) return;
+
+    addMessage(message, 'user');
+    messageInput.value = '';
+
+    typingIndicator.classList.add('show');
+
+    const reply = await getAIResponse(message);
+
+    typingIndicator.classList.remove('show');
+    addMessage(reply, 'bot'); // ✅ ใช้ bot ให้ตรง CSS
+}
+</script>
